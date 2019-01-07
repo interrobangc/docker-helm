@@ -1,0 +1,42 @@
+#!/usr/bin/env sh
+
+if [ -n "$SSL_CERTIFICATE" ]; then
+    export CERTIFICATE_BLOCK="certificate-authority-data: $SSL_CERTIFICATE"
+else
+    export CERTIFICATE_BLOCK="insecure-skip-tls-verify: true"
+fi
+
+if [ -n "$NAMESPACE" ]; then
+    export NAMESPACE_BLOCK="namespace: $NAMESPACE"
+fi
+
+if [ -n "$TOKEN" ]; then
+    export TOKEN_BLOCK="token: $TOKEN"
+fi
+
+if [ -n "$EKS_ROLE_ARN" ]; then
+    export EKS_ROLE_BLOCK="
+        - \"-r\"
+        - \"${EKS_ROLE_ARN}\"
+    "
+fi
+
+if [ -n "$EKS_CLUSTER" ]; then
+    export EKS_CLUSTER_BLOCK="
+    exec:
+      apiVersion: client.authentication.k8s.io/v1alpha1
+      command: aws-iam-authenticator
+      args:
+        - "token"
+        - "-i"
+        - "${EKS_CLUSTER}"
+        ${EKS_ROLE_BLOCK}
+    "
+fi
+
+if [ -n "$GENERATE_KUBECONF" ]; then
+    mkdir /root/.kube
+    cat /docker-entrypoint/kubeconfig | envsubst > /root/.kube/config
+fi
+
+exec "$@"
